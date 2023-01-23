@@ -1,0 +1,6 @@
+[submodule "luau"]
+	path = luau
+	url = https://github.com/Roblox/luau.git
+[submodule "emsdk"]
+	path = emsdk
+	url = https://github.com/emscripten-core/emsdk.git

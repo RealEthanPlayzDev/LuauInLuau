@@ -1,0 +1,204 @@
+--// Named function dictionary
+local NamedFunctionList = {
+    --// Luau
+    ["luau_compile"] = FUNC_LIST[363];
+    ["luaL_newstate"] = FUNC_LIST[575];
+    ["luaL_openlibs"] = FUNC_LIST[573];
+    ["lua_close"] = FUNC_LIST[641];
+    ["luaL_sandbox"] = FUNC_LIST[574];
+    ["lua_tolstring"] = FUNC_LIST[389];
+
+    --// Standard Library
+    ["dlmalloc"] = FUNC_LIST[1245];
+    ["dlfree"] = FUNC_LIST[1246];
+    
+    --// WebAssembly
+    ["__wasm_call_ctors"] = FUNC_LIST[11];
+
+    --// LuauInLuau
+    ["LuauRunUsingCustomState"] = FUNC_LIST[12];
+
+    --// Macros
+    ["lua_tostring"] = function(L, i) return FUNC_LIST[389](L, i, 0) end;
+}
+
+--// Pre-init environment function setup
+local NOW_TIME = os.time() * 1000
+local FILE_MAP = { {}, {} }
+local load_string = rt.load.string
+local table_insert = table.insert
+
+local function fd_flush(file)
+    local final = table.concat(file)
+    local last = 1
+    for index, data in string.gmatch(final, '()([^\n]*)\n') do
+        last = index + #data
+        print(data)
+    end
+    table.clear(file)
+    file[1] = string.sub(final, last + 1)
+end
+
+--// __cxa_throw
+FUNC_LIST[0] = function(except, _info, _dtor)
+    local what = FUNC_LIST[519](except)
+    local len = FUNC_LIST[1197](what)
+    error("An exception was thrown\n" .. load_string(memory_at_0, what, len))
+end
+
+--// emscripten_memcpy_big
+FUNC_LIST[2] = function(destination, source, size)
+    rt.allocator.copy(memory_at_0, destination, source, size)
+end
+
+--// emscripten_date_now
+FUNC_LIST[7] = function()
+    return NOW_TIME + os.clock() * 1000
+end
+
+--// fd_write
+FUNC_LIST[8] = function(fd, list, count, ret_pointer)
+    local file = FILE_MAP[fd]
+    if not file then return 8 end
+    local total = 0
+    for pointer = list, list + (count - 1) * 8, 8 do
+        local start = load_i32(memory_at_0, pointer)
+        local len = load_i32(memory_at_0, pointer + 4)
+        local read = load_string(memory_at_0, start, len)
+        table_insert(file, read)
+        total = total + #read
+    end
+    store_i32(memory_at_0, ret_pointer, total)
+    fd_flush(file)
+    return 0
+end
+
+--// abort
+FUNC_LIST[10] = function(reason)
+    assert(false, "Aborted("..reason..")")
+end
+
+--// Initialize
+run_init_code()
+memory_at_0 = MEMORY_LIST[0]
+NamedFunctionList.__wasm_call_ctors()
+
+--// Patching existing required functions in env
+local function lua_try_catch(index, ...)
+    return TABLE_LIST[0].data[index](...)
+end
+
+for _, v in ipairs { 1, 3, 4, 5, 6, 9 } do
+    FUNC_LIST[v] = lua_try_catch
+end
+
+--// Functions that will be exported
+local function ValidLuauBytecode(bytecode: string)
+    --// This isn't really checking the contents of the string and just checking the version identifier (first byte)
+    --// Thanks to @TheGreatSageEqualToHeaven since I took this from Fiu (read_byte at luau_deserialize and the version identifier check)
+    return string.unpack(">B", bytecode, 1) == 3
+end
+
+local function ResultCodeToBoolean(code)
+    return code == 0
+end
+
+local function LuauCompile(src: string)
+    --// Create source string (char*) and bytecode size thing (size_t)
+    local SrcLength = #src
+    local SrcBuffer = NamedFunctionList.dlmalloc(SrcLength + 1)
+    rt.store.string(memory_at_0, SrcBuffer, src)
+    rt.store.i32_n8(memory_at_0, SrcBuffer + SrcLength, 0)
+    local BytecodeSizePtr = NamedFunctionList.dlmalloc(8) --// size_t = 8 bytes, thanks @Rerumu
+
+    --// Compile bytecode and get the size
+    local BytecodePtr = NamedFunctionList.luau_compile(SrcBuffer, SrcLength, 0, BytecodeSizePtr)
+    local BytecodeSize = load_i32(memory_at_0, BytecodeSizePtr)
+    local Bytecode = load_string(memory_at_0, BytecodePtr, BytecodeSize)
+    local ValidLuauBytecode = ValidLuauBytecode(Bytecode)
+
+    --// Cleanup
+    NamedFunctionList.dlfree(SrcBuffer)
+    NamedFunctionList.dlfree(BytecodeSizePtr)
+    NamedFunctionList.dlfree(BytecodePtr)
+
+    --// Return
+    --// If the compiler failed, then Bytecode will be the error that occured while compiling (BytecodeSize will be the length of the error)
+    return ValidLuauBytecode, Bytecode, BytecodeSize
+end
+
+local function LuauRun(src: string, safeenv: boolean?)
+    --// Compile bytecode
+    local CompileSuccess, Result, ResultSize = LuauCompile(src)
+    assert(CompileSuccess, Result)
+
+    --// Load bytecode string into memory
+    local BytecodePtr = NamedFunctionList.dlmalloc(ResultSize)
+    rt.store.string(memory_at_0, BytecodePtr, Result)
+
+    --// lua_State setup
+    local L = NamedFunctionList.luaL_newstate()
+    NamedFunctionList.luaL_openlibs(L)
+    if safeenv then
+        NamedFunctionList.luaL_sandbox(L)
+    end
+
+    --// Load and run bytecode
+    local Result = NamedFunctionList.LuauRunUsingCustomState(L, BytecodePtr)
+
+    --// Cleanup and return
+    NamedFunctionList.lua_close(L)
+    NamedFunctionList.dlfree(BytecodePtr)
+    return ResultCodeToBoolean(Result)
+end
+
+local function LuauRunWithSafeEnv(src: string)
+    return LuauRun(src, true)
+end
+
+local function LuauRunWithoutSafeEnv(src: string)
+    return LuauRun(src, false)
+end
+
+local function LuauRunBytecode(bytecode: string, safeenv: boolean?)
+    --// Load bytecode string into memory
+    local BytecodePtr = NamedFunctionList.dlmalloc(#bytecode)
+    rt.store.string(memory_at_0, BytecodePtr, bytecode)
+
+    --// lua_State setup
+    local L = NamedFunctionList.luaL_newstate()
+    NamedFunctionList.luaL_openlibs(L)
+    if safeenv then
+        NamedFunctionList.luaL_sandbox(L)
+    end
+
+    --// Load bytecode into lua_State and run bytecode
+    local Result = NamedFunctionList.LuauRunUsingCustomState(L, BytecodePtr)
+
+    --// Cleanup and return
+    NamedFunctionList.lua_close(L)
+    NamedFunctionList.dlfree(BytecodePtr)
+    return ResultCodeToBoolean(Result)
+end
+
+local function CreateClosureFromSource(src: string, safeenv: boolean?)
+    return function()
+        LuauRun(src, safeenv)
+        return
+    end
+end
+
+--// Return
+return {
+    Run = LuauRun;
+    RunWithoutSafeEnv = LuauRunWithoutSafeEnv;
+    RunWithSafeEnv = LuauRunWithSafeEnv;
+    Compile = LuauCompile;
+    RunBytecode = LuauRunBytecode;
+    CreateClosureFromSource = CreateClosureFromSource;
+    ValidLuauBytecode = ValidLuauBytecode;
+    ResultCodeToBoolean = ResultCodeToBoolean;
+    NamedFunctionList = NamedFunctionList;
+    rt = rt;
+    FUNC_LIST = FUNC_LIST;
+}
