@@ -127,7 +127,7 @@ local function LuauCompile(src: string)
     return ValidLuauBytecode, Bytecode, BytecodeSize
 end
 
-local function LuauRun(src: string, chunkname: string?, safeenv: boolean?)
+local function LuauRun(src: string, safeenv: boolean?)
     --// Compile bytecode
     local CompileSuccess, Result, ResultSize = LuauCompile(src)
     assert(CompileSuccess, Result)
@@ -135,11 +135,6 @@ local function LuauRun(src: string, chunkname: string?, safeenv: boolean?)
     --// Load bytecode string into memory
     local BytecodePtr = NamedFunctionList.dlmalloc(ResultSize)
     rt.store.string(memory_at_0, BytecodePtr, Result)
-
-    --// Load chunk name string into memory
-    local ChunkName = chunkname or "LuauInLuau_Chunk"
-    local ChunkNamePtr = NamedFunctionList.dlmalloc(#ChunkName)
-    rt.store.string(memory_at_0, BytecodePtr, ChunkName)
 
     --// lua_State setup
     local L = NamedFunctionList.luaL_newstate()
@@ -149,32 +144,26 @@ local function LuauRun(src: string, chunkname: string?, safeenv: boolean?)
     end
 
     --// Load and run bytecode
-    local Result = NamedFunctionList.LuauRunUsingCustomState(L, BytecodePtr, ChunkNamePtr)
+    local Result = NamedFunctionList.LuauRunUsingCustomState(L, BytecodePtr)
 
     --// Cleanup and return
     NamedFunctionList.lua_close(L)
     NamedFunctionList.dlfree(BytecodePtr)
-    NamedFunctionList.dlfree(ChunkNamePtr)
     return ResultCodeToBoolean(Result)
 end
 
-local function LuauRunWithSafeEnv(src: string, chunkname: string?)
-    return LuauRun(src, chunkname, true)
+local function LuauRunWithSafeEnv(src: string)
+    return LuauRun(src, true)
 end
 
-local function LuauRunWithoutSafeEnv(src: string, chunkname: string?)
-    return LuauRun(src, chunkname, false)
+local function LuauRunWithoutSafeEnv(src: string)
+    return LuauRun(src, false)
 end
 
-local function LuauRunBytecode(bytecode: string, chunkname: string?, safeenv: boolean?)
+local function LuauRunBytecode(bytecode: string, safeenv: boolean?)
     --// Load bytecode string into memory
     local BytecodePtr = NamedFunctionList.dlmalloc(#bytecode)
     rt.store.string(memory_at_0, BytecodePtr, bytecode)
-
-    --// Load chunk name string into memory
-    local ChunkName = chunkname or "LuauInLuau_Chunk"
-    local ChunkNamePtr = NamedFunctionList.dlmalloc(#ChunkName)
-    rt.store.string(memory_at_0, BytecodePtr, ChunkName)
 
     --// lua_State setup
     local L = NamedFunctionList.luaL_newstate()
@@ -184,12 +173,11 @@ local function LuauRunBytecode(bytecode: string, chunkname: string?, safeenv: bo
     end
 
     --// Load bytecode into lua_State and run bytecode
-    local Result = NamedFunctionList.LuauRunUsingCustomState(L, BytecodePtr, ChunkNamePtr)
+    local Result = NamedFunctionList.LuauRunUsingCustomState(L, BytecodePtr)
 
     --// Cleanup and return
     NamedFunctionList.lua_close(L)
     NamedFunctionList.dlfree(BytecodePtr)
-    NamedFunctionList.dlfree(ChunkNamePtr)
     return ResultCodeToBoolean(Result)
 end
 
