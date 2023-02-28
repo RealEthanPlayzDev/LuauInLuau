@@ -1,16 +1,16 @@
 --// Named function dictionary
 local NamedFunctionList = {
     --// Luau
-    ["luau_compile"] = FUNC_LIST[363];
-    ["luaL_newstate"] = FUNC_LIST[575];
-    ["luaL_openlibs"] = FUNC_LIST[573];
-    ["lua_close"] = FUNC_LIST[641];
-    ["luaL_sandbox"] = FUNC_LIST[574];
-    ["lua_tolstring"] = FUNC_LIST[389];
+    ["luau_compile"] = FUNC_LIST[373];
+    ["luaL_newstate"] = FUNC_LIST[586];
+    ["luaL_openlibs"] = FUNC_LIST[584];
+    ["lua_close"] = FUNC_LIST[652];
+    ["luaL_sandbox"] = FUNC_LIST[585];
+    ["lua_tolstring"] = FUNC_LIST[399];
 
     --// Standard Library
-    ["dlmalloc"] = FUNC_LIST[1245];
-    ["dlfree"] = FUNC_LIST[1246];
+    ["dlmalloc"] = FUNC_LIST[1255];
+    ["dlfree"] = FUNC_LIST[1256];
     
     --// WebAssembly
     ["__wasm_call_ctors"] = FUNC_LIST[11];
@@ -19,7 +19,7 @@ local NamedFunctionList = {
     ["LuauRunUsingCustomState"] = FUNC_LIST[12];
 
     --// Macros
-    ["lua_tostring"] = function(L, i) return FUNC_LIST[389](L, i, 0) end;
+    ["lua_tostring"] = function(L, i) return FUNC_LIST[399](L, i, 0) end;
 }
 
 --// Pre-init environment function setup

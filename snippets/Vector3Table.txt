@@ -1,3 +1,5 @@
+--// Vanilla Luau Vector3 implementation
+--// Only does this if it does not find a Vector3 global
 local type = type
 local typeof = typeof
 local Vector3 = Vector3
