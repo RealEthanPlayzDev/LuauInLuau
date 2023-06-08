@@ -1,25 +1,25 @@
 --// Named function dictionary
 local NamedFunctionList = {
     --// Luau
-    ["luau_compile"] = FUNC_LIST[374];
-    ["luaL_newstate"] = FUNC_LIST[586];
-    ["luaL_openlibs"] = FUNC_LIST[584];
-    ["lua_close"] = FUNC_LIST[652];
-    ["luaL_sandbox"] = FUNC_LIST[585];
-    ["lua_tolstring"] = FUNC_LIST[399];
+    ["luau_compile"] = FUNC_LIST[753];
+    ["luaL_newstate"] = FUNC_LIST[1083];
+    ["luaL_openlibs"] = FUNC_LIST[1080];
+    ["lua_close"] = FUNC_LIST[1150];
+    ["luaL_sandbox"] = FUNC_LIST[1082];
+    ["lua_tolstring"] = FUNC_LIST[784];
 
     --// Standard Library
-    ["dlmalloc"] = FUNC_LIST[1257];
-    ["dlfree"] = FUNC_LIST[1258];
+    ["dlmalloc"] = FUNC_LIST[3450];
+    ["dlfree"] = FUNC_LIST[3451];
     
     --// WebAssembly
-    ["__wasm_call_ctors"] = FUNC_LIST[11];
+    ["__wasm_call_ctors"] = FUNC_LIST[350];
 
     --// LuauInLuau
-    ["LuauRunUsingCustomState"] = FUNC_LIST[12];
+    ["LuauRunUsingCustomState"] = FUNC_LIST[352];
 
     --// Macros
-    ["lua_tostring"] = function(L, i) return FUNC_LIST[399](L, i, 0) end;
+    ["lua_tostring"] = function(L, i) return FUNC_LIST[784](L, i, 0) end;
 }
 
 --// Pre-init environment function setup
@@ -47,17 +47,17 @@ FUNC_LIST[0] = function(except, _info, _dtor)
 end
 
 --// emscripten_memcpy_big
-FUNC_LIST[2] = function(destination, source, size)
+FUNC_LIST[281] = function(destination, source, size)
     rt.allocator.copy(memory_at_0, destination, source, size)
 end
 
 --// emscripten_date_now
-FUNC_LIST[3] = function()
+FUNC_LIST[285] = function()
     return NOW_TIME + os.clock() * 1000
 end
 
 --// fd_write
-FUNC_LIST[7] = function(fd, list, count, ret_pointer)
+FUNC_LIST[268] = function(fd, list, count, ret_pointer)
     local file = FILE_MAP[fd]
     if not file then return 8 end
     local total = 0
@@ -74,7 +74,7 @@ FUNC_LIST[7] = function(fd, list, count, ret_pointer)
 end
 
 --// abort
-FUNC_LIST[10] = function(reason)
+FUNC_LIST[312] = function(reason)
     assert(false, "Aborted("..reason..")")
 end
 
@@ -88,7 +88,14 @@ local function lua_try_catch(index, ...)
     return TABLE_LIST[0].data[index](...)
 end
 
-for _, v in ipairs { 1,4,5,6,8,9 } do
+local DoNotPatchTargets = { 0, 268, 281, 285, 312 }
+local PatchTargets = {}
+for i = 0, 349 do
+    if table.find(DoNotPatchTargets, i) then continue end
+    table.insert(PatchTargets, i)
+end
+
+for _, v in ipairs(PatchTargets) do
     FUNC_LIST[v] = lua_try_catch
 end
 
