@@ -1,13 +1,13 @@
 --// Named function dictionary
 local NamedFunctionList = {
     --// Luau
-    ["luau_compile"] = FUNC_LIST[753];
-    ["luaL_newstate"] = FUNC_LIST[1083];
-    ["luaL_openlibs"] = FUNC_LIST[1080];
-    ["lua_close"] = FUNC_LIST[1150];
-    ["luaL_sandbox"] = FUNC_LIST[1082];
-    ["lua_tolstring"] = FUNC_LIST[784];
-    ["luaL_pushresult"] = FUNC_LIST[888];
+    ["luau_compile"] = FUNC_LIST[756];
+    ["luaL_newstate"] = FUNC_LIST[1086];
+    ["luaL_openlibs"] = FUNC_LIST[1083];
+    ["lua_close"] = FUNC_LIST[1153];
+    ["luaL_sandbox"] = FUNC_LIST[1085];
+    ["lua_tolstring"] = FUNC_LIST[787];
+    ["luaL_pushresult"] = FUNC_LIST[891];
 
     --// Standard Library
     ["dlmalloc"] = FUNC_LIST[3450];
@@ -18,10 +18,13 @@ local NamedFunctionList = {
     ["__wasm_call_ctors"] = FUNC_LIST[350];
 
     --// LuauInLuau
-    ["LuauRunUsingCustomState"] = FUNC_LIST[352];
+    ["LuauRunUsingCustomState"] = FUNC_LIST[351];
+    ["SetLuauFlags"] = FUNC_LIST[355];
+    ["SetLuauFlagsDefault"] = FUNC_LIST[356];
+    ["SetLuauFlag"] = FUNC_LIST[353];
 
     --// Macros
-    ["lua_tostring"] = function(L, i) return FUNC_LIST[784](L, i, 0) end; --// lua_tolstring
+    ["lua_tostring"] = function(L, i) return FUNC_LIST[787](L, i, 0) end; --// lua_tolstring
 }
 
 --// Pre-init environment function setup
@@ -241,16 +244,47 @@ local function CreateClosureFromSource(src: string, safeenv: boolean?)
     end
 end
 
+local function SetLuauFlag(name: string, value: boolean)
+    --// Load name string into memory
+    local NamePtr = NamedFunctionList.dlmalloc(#name)
+    rt.store.string(memory_at_0, NamePtr, name)
+
+    --// Set the flag
+    NamedFunctionList.SetLuauFlag(NamePtr, if value then 0 else 1)
+
+    --// Cleanup and return
+    NamedFunctionList.dlfree(NamePtr)
+    return
+end
+
+local function SetLuauFlags(value: boolean)
+    --// Set all flags and return
+    NamedFunctionList.SetLuauFlags(if value then 0 else 1)
+    return
+end
+
 --// Return
 return {
+    --// Run functions
     Run = LuauRun;
     RunWithoutSafeEnv = LuauRunWithoutSafeEnv;
     RunWithSafeEnv = LuauRunWithSafeEnv;
-    Compile = LuauCompile;
     RunBytecode = LuauRunBytecode;
+
+    --// Compile related functions
+    Compile = LuauCompile;
     CreateClosureFromSource = CreateClosureFromSource;
+
+    --// Luau flag utilities
+    ResetFlags = NamedFunctionList.SetLuauFlagsDefault;
+    SetLuauFlag = SetLuauFlag;
+    SetLuauFlags = SetLuauFlags;
+
+    --// Misc utilities
     ValidLuauBytecode = ValidLuauBytecode;
     ResultCodeToBoolean = ResultCodeToBoolean;
+
+    --// Wasynth related utilities
     NamedFunctionList = NamedFunctionList;
     rt = rt;
     FUNC_LIST = FUNC_LIST;
