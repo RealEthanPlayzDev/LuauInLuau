@@ -7,10 +7,12 @@ local NamedFunctionList = {
     ["lua_close"] = FUNC_LIST[1150];
     ["luaL_sandbox"] = FUNC_LIST[1082];
     ["lua_tolstring"] = FUNC_LIST[784];
+    ["luaL_pushresult"] = FUNC_LIST[888];
 
     --// Standard Library
     ["dlmalloc"] = FUNC_LIST[3450];
     ["dlfree"] = FUNC_LIST[3451];
+    ["strlen"] = FUNC_LIST[3196];
     
     --// WebAssembly
     ["__wasm_call_ctors"] = FUNC_LIST[350];
@@ -19,7 +21,7 @@ local NamedFunctionList = {
     ["LuauRunUsingCustomState"] = FUNC_LIST[352];
 
     --// Macros
-    ["lua_tostring"] = function(L, i) return FUNC_LIST[784](L, i, 0) end;
+    ["lua_tostring"] = function(L, i) return FUNC_LIST[784](L, i, 0) end; --// lua_tolstring
 }
 
 --// Pre-init environment function setup
@@ -27,6 +29,12 @@ local NOW_TIME = os.time() * 1000
 local FILE_MAP = { {}, {} }
 local load_string = rt.load.string
 local table_insert = table.insert
+
+local function CreateStub(ret)
+    return function()
+        return ret
+    end
+end
 
 local function fd_flush(file)
     local final = table.concat(file)
@@ -39,10 +47,24 @@ local function fd_flush(file)
     file[1] = string.sub(final, last + 1)
 end
 
+--// Stubbed functions
+FUNC_LIST[311] = CreateStub(0) --// _emscripten_get_progname
+FUNC_LIST[344] = CreateStub(0) --// fd_seek
+FUNC_LIST[347] = CreateStub(0) --// fd_pread
+FUNC_LIST[348] = CreateStub(0) --// fd_pwrite
+FUNC_LIST[349] = CreateStub(0) --// __syscall_truncate64
+FUNC_LIST[346] = CreateStub(0) --// __syscall_fallocate
+FUNC_LIST[298] = CreateStub(0) --// fd_sync
+FUNC_LIST[302] = CreateStub(0) --// fs_fdstat_get
+FUNC_LIST[260] = CreateStub(0) --// environ_sizes_get
+FUNC_LIST[261] = CreateStub(0) --// environ_get
+FUNC_LIST[266] = CreateStub(0) --// fd_close
+FUNC_LIST[267] = CreateStub(0) --// fd_read
+
 --// __cxa_throw
 FUNC_LIST[0] = function(except, _info, _dtor)
-    local what = FUNC_LIST[519](except)
-    local len = FUNC_LIST[1197](what)
+    local what = NamedFunctionList.luaL_pushresult(except)
+    local len = NamedFunctionList.strlen(what)
     error("An exception was thrown\n" .. load_string(memory_at_0, what, len))
 end
 
@@ -78,6 +100,11 @@ FUNC_LIST[312] = function(reason)
     assert(false, "Aborted("..reason..")")
 end
 
+--// proc_exit
+FUNC_LIST[259] = function()
+    return FUNC_LIST[312]("process exited")
+end
+
 --// Initialize
 run_init_code()
 memory_at_0 = MEMORY_LIST[0]
@@ -88,7 +115,7 @@ local function lua_try_catch(index, ...)
     return TABLE_LIST[0].data[index](...)
 end
 
-local DoNotPatchTargets = { 0, 268, 281, 285, 312 }
+local DoNotPatchTargets = { 0, 259, 260, 261, 266, 267, 268, 281, 285, 298, 302, 311, 312, 344, 346, 347, 348, 349 }
 local PatchTargets = {}
 for i = 0, 349 do
     if table.find(DoNotPatchTargets, i) then continue end
@@ -110,7 +137,7 @@ local function ResultCodeToBoolean(code)
     return code == 0
 end
 
-local function LuauCompile(src: string)
+local function LuauCompile(src: string, optimizationlevel: number?, debuglevel: number?)
     --// Create source string (char*) and bytecode size thing (size_t)
     local SrcLength = #src
     local SrcBuffer = NamedFunctionList.dlmalloc(SrcLength + 1)
@@ -118,8 +145,26 @@ local function LuauCompile(src: string)
     rt.store.i32_n8(memory_at_0, SrcBuffer + SrcLength, 0)
     local BytecodeSizePtr = NamedFunctionList.dlmalloc(8) --// size_t = 8 bytes, thanks @Rerumu
 
+    --// Create a CompileOptions (luau/Compiler/include/Luau/Compiler.h#L17)
+    --// Struct object
+    --// We're only using the optimizationLevel and debugLevel properties on the struct,
+    --// both are int, a int is 4 bytes, so we allocate 8 bytes to store those 2 properties:
+    --[[
+    // 0 - no optimization
+    // 1 - baseline optimization level that doesn't prevent debuggability
+    // 2 - includes optimizations that harm debuggability such as inlining
+    int optimizationLevel = 1;
+
+    // 0 - no debugging support
+    // 1 - line info & function names only; sufficient for backtraces
+    // 2 - full debug info with local & upvalue names; necessary for debugger
+    int debugLevel = 1;
+    --]]
+    local CompileOptionsPtr = NamedFunctionList.dlmalloc(8)
+    rt.store.i64(memory_at_0, CompileOptionsPtr, rt.i64.from_u32(optimizationlevel or 1, debuglevel or 1))
+
     --// Compile bytecode and get the size
-    local BytecodePtr = NamedFunctionList.luau_compile(SrcBuffer, SrcLength, 0, BytecodeSizePtr)
+    local BytecodePtr = NamedFunctionList.luau_compile(SrcBuffer, SrcLength, CompileOptionsPtr, BytecodeSizePtr)
     local BytecodeSize = load_i32(memory_at_0, BytecodeSizePtr)
     local Bytecode = load_string(memory_at_0, BytecodePtr, BytecodeSize)
     local ValidLuauBytecode = ValidLuauBytecode(Bytecode)
@@ -128,15 +173,16 @@ local function LuauCompile(src: string)
     NamedFunctionList.dlfree(SrcBuffer)
     NamedFunctionList.dlfree(BytecodeSizePtr)
     NamedFunctionList.dlfree(BytecodePtr)
+    NamedFunctionList.dlfree(CompileOptionsPtr)
 
     --// Return
     --// If the compiler failed, then Bytecode will be the error that occured while compiling (BytecodeSize will be the length of the error)
     return ValidLuauBytecode, Bytecode, BytecodeSize
 end
 
-local function LuauRun(src: string, safeenv: boolean?)
+local function LuauRun(src: string, safeenv: boolean?, optimizationlevel: number?, debuglevel: number?)
     --// Compile bytecode
-    local CompileSuccess, Result, ResultSize = LuauCompile(src)
+    local CompileSuccess, Result, ResultSize = LuauCompile(src, optimizationlevel, debuglevel)
     assert(CompileSuccess, Result)
 
     --// Load bytecode string into memory

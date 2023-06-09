@@ -1,12 +1,12 @@
 # LuauInLuau
 Inspired by @Rerumu's [LuauInLuau](https://gist.github.com/Rerumu/ecaf1de2f2b31d0fa91b9bac8e1e15d8), I've created this repository to translate Luau to Luau.
 
-## BROKEN SINCE 0.579
-Something seems to have changed (needing gl apis and ``__wasm_call_ctors`` jumped from 10/11 to 350, along with every function, the changes are REALLY large), the resulting wasm binary now requires multiple environment functions that I cannot write at the moment, there is a 0.579 pre-release but keep in mind that it does NOT work. Previous releases are unaffected. Feel free to make a pr to fix the issues, but as of June 8 2023, I cannot fix this due to my lack of understanding.
-
 ## Features
 - Running Luau code (with or without safe env)
-- Compiling Luau code into bytecode
+- Compiling Luau code into bytecode (with support for setting optimization and debug levels)
+
+## Fix list
+- [ ] Fix issue where if a error occurs during runtime, it crashes the thread calling the function and does not provide any useful information
 
 ## Getting LuauInLuau
 You can get it from releases or compile using the following instruction: (they were tested in Linux, WSL2 to be specific, using bash)
@@ -31,9 +31,11 @@ My solution? Make a C++ program to wrap around those functions! Yes, that is why
 - [Wasynth](https://github.com/Rerumu/Wasynth) - WebAssembly -> Luau translation tool
 - [The original LuauInLuau](https://gist.github.com/Rerumu/ecaf1de2f2b31d0fa91b9bac8e1e15d8) - What started this project, and used some code from it.
 - [Fiu](https://github.com/TheGreatSageEqualToHeaven/Fiu) - Used their Luau bytecode version verification code
+- [NougatBitz/Luau](https://github.com/NougatBitz/Luau) - Used code from here (with permission) to patch things further
 
 ## Acknowledgements
 - [@Roblox](https://github.com/Roblox) and Luau contributors
 - Emscripten contributors and creators
 - [@Rerumu](https://github.com/Rerumu)
 - [@TheGreatSageEqualToHeaven](https://github.com/TheGreatSageEqualToHeaven)
+- [@NougatBitz](https://github.com/NougatBitz)
