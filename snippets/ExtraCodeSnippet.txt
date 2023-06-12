@@ -2,17 +2,17 @@
 local NamedFunctionList = {
     --// Luau
     ["luau_compile"] = FUNC_LIST[756];
-    ["luaL_newstate"] = FUNC_LIST[1086];
-    ["luaL_openlibs"] = FUNC_LIST[1083];
-    ["lua_close"] = FUNC_LIST[1153];
-    ["luaL_sandbox"] = FUNC_LIST[1085];
+    ["luaL_newstate"] = FUNC_LIST[1085];
+    ["luaL_openlibs"] = FUNC_LIST[1082];
+    ["lua_close"] = FUNC_LIST[1152];
+    ["luaL_sandbox"] = FUNC_LIST[1083];
     ["lua_tolstring"] = FUNC_LIST[787];
     ["luaL_pushresult"] = FUNC_LIST[891];
 
     --// Standard Library
-    ["dlmalloc"] = FUNC_LIST[3450];
-    ["dlfree"] = FUNC_LIST[3451];
-    ["strlen"] = FUNC_LIST[3196];
+    ["dlmalloc"] = FUNC_LIST[3449];
+    ["dlfree"] = FUNC_LIST[3450];
+    ["strlen"] = FUNC_LIST[3195];
     
     --// WebAssembly
     ["__wasm_call_ctors"] = FUNC_LIST[350];
@@ -58,7 +58,7 @@ FUNC_LIST[348] = CreateStub(0) --// fd_pwrite
 FUNC_LIST[349] = CreateStub(0) --// __syscall_truncate64
 FUNC_LIST[346] = CreateStub(0) --// __syscall_fallocate
 FUNC_LIST[298] = CreateStub(0) --// fd_sync
-FUNC_LIST[302] = CreateStub(0) --// fs_fdstat_get
+FUNC_LIST[302] = CreateStub(0) --// fd_fdstat_get
 FUNC_LIST[260] = CreateStub(0) --// environ_sizes_get
 FUNC_LIST[261] = CreateStub(0) --// environ_get
 FUNC_LIST[266] = CreateStub(0) --// fd_close
@@ -237,9 +237,9 @@ local function LuauRunBytecode(bytecode: string, safeenv: boolean?)
     return ResultCodeToBoolean(Result)
 end
 
-local function CreateClosureFromSource(src: string, safeenv: boolean?)
+local function CreateClosureFromSource(src: string, safeenv: boolean?, optimizationlevel: number?, debuglevel: number?)
     return function()
-        LuauRun(src, safeenv)
+        LuauRun(src, safeenv, optimizationlevel, debuglevel)
         return
     end
 end
