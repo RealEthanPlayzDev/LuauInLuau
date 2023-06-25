@@ -1,18 +1,18 @@
 --// Named function dictionary
 local NamedFunctionList = {
     --// Luau
-    ["luau_compile"] = FUNC_LIST[756];
-    ["luaL_newstate"] = FUNC_LIST[1085];
-    ["luaL_openlibs"] = FUNC_LIST[1082];
-    ["lua_close"] = FUNC_LIST[1152];
-    ["luaL_sandbox"] = FUNC_LIST[1083];
-    ["lua_tolstring"] = FUNC_LIST[787];
-    ["luaL_pushresult"] = FUNC_LIST[891];
+    ["luau_compile"] = FUNC_LIST[762];
+    ["luaL_newstate"] = FUNC_LIST[1091];
+    ["luaL_openlibs"] = FUNC_LIST[1088];
+    ["lua_close"] = FUNC_LIST[1158];
+    ["luaL_sandbox"] = FUNC_LIST[1090];
+    ["lua_tolstring"] = FUNC_LIST[793];
+    ["luaL_pushresult"] = FUNC_LIST[897];
 
     --// Standard Library
-    ["dlmalloc"] = FUNC_LIST[3449];
-    ["dlfree"] = FUNC_LIST[3450];
-    ["strlen"] = FUNC_LIST[3195];
+    ["dlmalloc"] = FUNC_LIST[3453];
+    ["dlfree"] = FUNC_LIST[3454];
+    ["strlen"] = FUNC_LIST[3199];
     
     --// WebAssembly
     ["__wasm_call_ctors"] = FUNC_LIST[350];
@@ -24,7 +24,7 @@ local NamedFunctionList = {
     ["SetLuauFlag"] = FUNC_LIST[353];
 
     --// Macros
-    ["lua_tostring"] = function(L, i) return FUNC_LIST[787](L, i, 0) end; --// lua_tolstring
+    ["lua_tostring"] = function(L, i) return FUNC_LIST[793](L, i, 0) end; --// lua_tolstring
 }
 
 --// Pre-init environment function setup
