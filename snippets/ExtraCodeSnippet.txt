@@ -73,7 +73,7 @@ end
 
 --// emscripten_memcpy_big
 FUNC_LIST[281] = function(destination, source, size)
-    rt.allocator.copy(memory_at_0, destination, source, size)
+    rt.store.copy(memory_at_0, destination, memory_at_0, source, size)
 end
 
 --// emscripten_date_now
