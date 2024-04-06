@@ -1,3 +1,6 @@
+# DEPRECATED
+https://github.com/RealEthanPlayzDev/LuauCeption
+
 # LuauInLuau
 Inspired by @Rerumu's [LuauInLuau](https://gist.github.com/Rerumu/ecaf1de2f2b31d0fa91b9bac8e1e15d8), I've created this repository to translate Luau to Luau.
 
